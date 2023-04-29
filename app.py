@@ -1,11 +1,7 @@
 import os
 import dotenv
-import telegram
-from telegram.ext import  CommandHandler, MessageHandler
-# Telegram bot token
+import requests,img2pdf
 from typing import Final
-
-# pip install python-telegram-bot
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
@@ -18,21 +14,40 @@ BOT_USERNAME: Final = '@image_to_pdfs_bot'
 
 # Lets us use the /start command
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Hello there! I\'m a bot. What\'s up?')
-
+    await update.message.reply_text('Hello there! I\'m a bot that converts image to pdf. What\'s up?')
 
 # Lets us use the /help command
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Try typing anything and I will do my best to respond!')
+    await update.message.reply_text('Just upload an image and i will convert it to PDF format')
 
+async def convert_to_pdf(update:Update, context:ContextTypes.DEFAULT_TYPE):
+    """Convert the image sent by the user to PDF and send it back."""
+    # Get the photo file and file_id from the message sent by the user
+    photo = update.message.photo[-1].file_id
 
-# Lets us use the /custom command
-async def custom_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('This is a custom command, you can add whatever text you want here.')
+    recieved_file =await context.bot.get_file(photo)
+    path = recieved_file.file_path
 
+    print(recieved_file.file_path,'tests')
+    
+   # Download the image file
+    image_file =requests.get(path).content
+    with open('image.jpg', 'wb') as f:
+        f.write(image_file)
 
+    # Convert the image to PDF
+    with open('image.pdf', 'wb') as f:
+        f.write(img2pdf.convert('image.jpg'))
+    
+    # Send the PDF file to the user
+    await context.bot.send_document(chat_id=update.message.chat_id, document=open('image.pdf', 'rb'))
+
+    # Send the PDF file to the user
+    # Clean up the temporary files
+    os.remove('image.jpg')
+    os.remove('image.pdf')
+    
 def handle_response(text: str) -> str:
-    # Create your own response logic
     processed: str = text.lower()
 
     if 'hello' in processed:
@@ -41,19 +56,13 @@ def handle_response(text: str) -> str:
     if 'how are you' in processed:
         return 'I\'m good!'
 
-    if 'i love python' in processed:
-        return 'Remember to subscribe!'
-
-    return 'I don\'t understand'
+    return 'Sorry I don\'t understand'
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Get basic info of the incoming message
     message_type: str = update.message.chat.type
     text: str = update.message.text
-
-    # Print a log for debugging
-    print(f'User ({update.message.chat.id}) in {message_type}: "{text}"')
 
     # React to group messages only if users mention the bot directly
     if message_type == 'group':
@@ -67,7 +76,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response: str = handle_response(text)
 
     # Reply normal if the message is in private
-    print('Bot:', response)
     await update.message.reply_text(response)
 
 
@@ -83,10 +91,10 @@ if __name__ == '__main__':
     # Commands
     app.add_handler(CommandHandler('start', start_command))
     app.add_handler(CommandHandler('help', help_command))
-    app.add_handler(CommandHandler('custom', custom_command))
 
     # Messages
     app.add_handler(MessageHandler(filters.TEXT, handle_message))
+    app.add_handler(MessageHandler(filters.PHOTO,convert_to_pdf))
 
     # Log all errors
     app.add_error_handler(error)
