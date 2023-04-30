@@ -42,16 +42,15 @@ async def convert_to_pdf(update:Update, context:ContextTypes.DEFAULT_TYPE):
     # Send the PDF file to the user
     await context.bot.send_document(chat_id=update.message.chat_id, document=open('image.pdf', 'rb'))
 
-    # Send the PDF file to the user
     # Clean up the temporary files
     os.remove('image.jpg')
     os.remove('image.pdf')
     
-def handle_response(text: str) -> str:
+def handle_response(text: str,update:Update) -> str:
     processed: str = text.lower()
 
-    if 'hello' in processed:
-        return 'Hey there!'
+    if 'hi' in processed:
+        return f'Hi {update.message.chat.first_name.lower()} How are you'
 
     if 'how are you' in processed:
         return 'I\'m good!'
@@ -63,17 +62,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Get basic info of the incoming message
     message_type: str = update.message.chat.type
     text: str = update.message.text
-
+    print(update.message)
     # React to group messages only if users mention the bot directly
     if message_type == 'group':
         # Replace with your bot username
         if BOT_USERNAME in text:
             new_text: str = text.replace(BOT_USERNAME, '').strip()
-            response: str = handle_response(new_text)
+            response: str = handle_response(new_text,update)
         else:
             return  # We don't want the bot respond if it's not mentioned in the group
     else:
-        response: str = handle_response(text)
+        response: str = handle_response(text,update)
 
     # Reply normal if the message is in private
     await update.message.reply_text(response)
